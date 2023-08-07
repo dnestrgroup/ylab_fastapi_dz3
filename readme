@@ -1,0 +1,28 @@
+### Создание вирутального окружения для проекта
+python -m venv venv
+### Активация вирутального окружения venv
+### команда запуска для Windows
+venv\Scripts\activate.bat
+### команда запуска для Linux
+source venv/bin/activate
+### Установка зависимостей
+pip install -r requirements.txt
+### собрать контейнер
+docker-compose build
+
+
+
+### запустить контейнер с приложением без запуска тестов
+docker-compose up app
+
+### запуск  отдельно тестов в отдельном контейнере
+docker-compose up pytest
+
+
+
+### создать миграцию 
+alembic revision --autogenerate -m "first"
+### применить миграцию
+alembic upgrade head
+### откатить последнюю миграцию 
+alembic downgrade -1

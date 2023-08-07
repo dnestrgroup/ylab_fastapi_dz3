@@ -1,0 +1,53 @@
+version: "3.9"
+
+x-app:
+  &app
+  build:
+    dockerfile: ./Dockerfile
+    context: .
+    args:
+      - DOCKER_USER_ID=${DOCKER_USER_ID:-5001}
+  depends_on:
+    - postgres
+  env_file: ./.env
+
+services:
+  app:
+    <<: *app
+    container_name: first_app
+    volumes:
+      - ./:/app
+    hostname: app
+    command: bash -c "alembic upgrade head && uvicorn --host 0.0.0.0 --port 80 --reload app.main:app"
+    ports:
+      - '8000:80'
+
+  pytest:
+    <<: *app
+    container_name: pytest_container
+    command: bash -c "alembic upgrade head && pytest"
+    volumes:
+      - ./:/app
+
+  postgres:
+    image: postgres:15.1-alpine
+    hostname: first_app_postgres
+    container_name: first_app_postgres
+    env_file: ./.env
+    environment:
+      POSTGRES_DB: "postgres"
+      POSTGRES_USER: "user_name"
+      POSTGRES_PASSWORD: "user_password"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+  redis:
+    image: redis:7
+    container_name: first_app_redis
+    command: --port 6378
+    ports:
+      - '6378:6378'
+
+volumes:
+  db-data:
