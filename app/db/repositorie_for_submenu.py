@@ -1,8 +1,9 @@
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models.models import Dishes, SubMenu
 from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models.models import Dishes, SubMenu
 from app.schemas.schemas import CreateSubMenuRequest, SubMenuResponse
+
 
 class RepositoriesSubMenus:
     def __init__(self, db: AsyncSession = None):
@@ -20,7 +21,7 @@ class RepositoriesSubMenus:
                 )
             )
         return list_submenus
-    
+
     async def get_submenu(self, id_menu: int, id_submenu: int):
         query = select(SubMenu).filter(SubMenu.id == id_submenu)
         res = (await self.db.execute(query)).scalar_one_or_none()
@@ -35,7 +36,7 @@ class RepositoriesSubMenus:
                 description=res.description,
                 dishes_count=dishes_count,
             )
-    
+
     async def patch_submenu(self, id_menu: int, id_submenu: int, data: CreateSubMenuRequest):
         query = (
             update(SubMenu)
@@ -58,7 +59,7 @@ class RepositoriesSubMenus:
         return SubMenuResponse(
             id=result[0], title=result[1], description=result[2], dishes_count=None
         )
-    
+
     async def delete_submenu(self, id_submenu: int):
         query = delete(SubMenu).where(SubMenu.id == id_submenu)
         await self.db.execute(query)

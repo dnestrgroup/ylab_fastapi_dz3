@@ -1,12 +1,14 @@
-from app.db.models.models import Dishes
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, insert, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models.models import Dishes
 from app.schemas.schemas import CreateDishesRequest, DishesResponse
+
 
 class RepositoriesDishes:
     def __init__(self, db: AsyncSession = None):
         self.db = db
-    
+
     async def get_list_dishes(self, id: int):
         query = select(Dishes).filter(Dishes.sub_menu_id == id)
         list_dishes = []
@@ -20,7 +22,7 @@ class RepositoriesDishes:
                 )
             )
         return list_dishes
-    
+
     async def get_dish_one_by_id(self, id_menu: int, id_submenu: int, id_dishes: int):
         query = select(Dishes).filter(Dishes.id == id_dishes)
         res = (await self.db.execute(query)).scalar_one_or_none()
@@ -37,7 +39,7 @@ class RepositoriesDishes:
         res = (await self.db.execute(query)).fetchone()
         await self.db.commit()
         return DishesResponse(id=res[0], title=res[1], description=res[2], price=res[3])
-    
+
     async def post_dish_new(self, data: CreateDishesRequest, id_menu: int, id_sub_menu: int):
         query = (
             insert(Dishes)
@@ -53,11 +55,11 @@ class RepositoriesDishes:
         await self.db.commit()
         if result:
             return DishesResponse(id=str(result[0]), title=result[1], description=result[2], price=result[3])
-    
+
     async def delete_dish_by_id(self, id_menu: int, id_submenu: int, id_dishes: int):
         query = (
             delete(Dishes)
             .where(Dishes.id == id_dishes)
         )
-        res = await self.db.execute(query)
+        await self.db.execute(query)
         await self.db.commit()
