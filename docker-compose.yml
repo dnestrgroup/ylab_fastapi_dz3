@@ -9,6 +9,7 @@ x-app:
       - DOCKER_USER_ID=${DOCKER_USER_ID:-5001}
   depends_on:
     - postgres
+    - redis
   env_file: ./.env
 
 services:
