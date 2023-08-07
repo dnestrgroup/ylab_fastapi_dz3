@@ -11,12 +11,10 @@ class TestRedis(TestClientBase):
     @pytest.mark.asyncio
     @pytest.mark.redis
     async def test_redis(self) -> None:
-        # data = json.dumps({"test_data": 1})
-        # redis_client.setex("2", 10, data.encode())
-        # cached_data = redis_client.get("2")
-        # if cached_data:
-        #     assert cached_data.decode() == data
-        # assert cached_data is not None
+        data = json.dumps({"test_data": 1})
+        redis_client.setex("2", 10, data.encode())
+        cached_data = redis_client.get("2")
+        if cached_data:
+            assert cached_data.decode() == data
+        assert cached_data is not None
 
-        temp = redis_client.keys("*")
-        print("redis = ", temp)
