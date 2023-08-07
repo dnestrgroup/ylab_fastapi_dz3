@@ -10,7 +10,7 @@ pip install -r requirements.txt
 ### собрать контейнер
 docker-compose build
 
-
+### test
 
 ### запустить контейнер с приложением без запуска тестов
 docker-compose up app
