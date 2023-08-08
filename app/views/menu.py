@@ -42,20 +42,34 @@ async def get_menu(id: int, db: AsyncSession = Depends(get_db)) -> MenuResponse:
 async def patch_menu(id: int, data: CreateMenuRequest, db: AsyncSession = Depends(get_db)) -> MenuResponse:
     repo = RepositoriesMenus(db)
     update_menu = await repo.update(id=id, data=data)
-    redis_client.flushall()
-    return MenuResponse(id=update_menu.id, title=update_menu.title, description=update_menu.description)
+    response = MenuResponse(
+        id=update_menu.id,
+        title=update_menu.title,
+        description=update_menu.description,
+        submenus_count=0, dishes_count=0)
+    redis_client.setex('/api/v1/menus/' + str(id), 1000, response.json())
+    return response
 
 
 @router.post('/api/v1/menus', response_model=MenuResponse, status_code=201)
 async def post_menu(data: CreateMenuRequest, db: AsyncSession = Depends(get_db)) -> MenuResponse:
     repo = RepositoriesMenus(db)
     new_menu = await repo.create(data=data)
-    redis_client.flushall()
-    return MenuResponse(id=new_menu.id, title=new_menu.title, description=new_menu.description)
+    redis_client.delete('/api/v1/menus')
+    res = await repo.get(new_menu.id)
+    response = MenuResponse(
+        id=res.id,
+        title=res.title,
+        description=res.description,
+        submenus_count=res.submenus_count if res.submenus_count > 0 else None,
+        dishes_count=res.dishes_count if res.dishes_count > 0 else None)
+    redis_client.setex('/api/v1/menus/' + str(response.id), 1000, res.json())
+    return response
 
 
 @router.delete('/api/v1/menus/{id}')
 async def delete_menu(id: int, db: AsyncSession = Depends(get_db)) -> None:
     repo = RepositoriesMenus(db)
+    redis_client.delete('/api/v1/menus/' + str(id))
+    redis_client.delete('/api/v1/menus')
     await repo.delete(id=id)
-    redis_client.flushall()
