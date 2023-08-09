@@ -38,7 +38,7 @@ class RepositoriesDishes:
         )
         res = (await self.db.execute(query)).fetchone()
         await self.db.commit()
-        return DishesResponse(id=res[0], title=res[1], description=res[2], price=res[3])
+        return DishesResponse(id=res.id, title=res.title, description=res.description, price=res.price)
 
     async def create(self, data: CreateDishesRequest, id_menu: int, id_sub_menu: int):
         query = (
@@ -54,7 +54,7 @@ class RepositoriesDishes:
         result = (await self.db.execute(query)).fetchone()
         await self.db.commit()
         if result:
-            return DishesResponse(id=str(result[0]), title=result[1], description=result[2], price=result[3])
+            return DishesResponse(id=str(result.id), title=result.title, description=result.description, price=result.price)
 
     async def delete(self, id_dishes: int):
         query = (
