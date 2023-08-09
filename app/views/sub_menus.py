@@ -13,13 +13,13 @@ router = APIRouter()
 
 
 @router.get('/api/v1/menus/{id_menu}/submenus', response_model=list[SubMenuResponse])
-async def get_menus(id_menu: int, db: AsyncSession = Depends(get_db)) -> list[SubMenuResponse]:
-    cached_data = redis_client.get('/api/v1/menus/{id_menu}/submenus')
+async def get_submenus(id_menu: int, db: AsyncSession = Depends(get_db)) -> list[SubMenuResponse]:
+    cached_data = redis_client.get(f'/api/v1/menus/{id_menu}/submenus')
     if cached_data:
         list_menu = json.loads(cached_data)
         return [SubMenuResponse(**json.loads(submenu)) for submenu in list_menu]
     repo_sm = RepositoriesSubMenus(db)
-    list_menu = await repo_sm.get_list_submenus(id_menu)
+    list_menu = await repo_sm.get_list(id_menu)
     submenus_for_redis = [submenu.json() for submenu in list_menu]
     redis_client.setex(
         '/api/v1/menus/{id_menu}/submenus', 1000, json.dumps(submenus_for_redis))
@@ -37,7 +37,7 @@ async def get_submenu(
     if cached_data:
         return SubMenuResponse(**json.loads(cached_data))
     repo_sm = RepositoriesSubMenus(db)
-    res = await repo_sm.get_submenu(id_menu, id_submenu)
+    res = await repo_sm.get(id_menu, id_submenu)
     if res:
         redis_client.setex('/api/v1/menus/' + str(id_menu) + '/submenus/' + str(id_submenu), 1000, res.json())
         return res
@@ -51,8 +51,13 @@ async def patch_submenu(
     id_menu: int, id_submenu: int, data: CreateSubMenuRequest, db: AsyncSession = Depends(get_db)
 ) -> SubMenuResponse:
     repo_sm = RepositoriesSubMenus(db)
-    res = await repo_sm.patch_submenu(id_menu, id_submenu, data)
-    redis_client.flushall()
+    res = await repo_sm.update(id_menu, id_submenu, data)
+    response_sm = SubMenuResponse(
+        id=res.id,
+        title=res.title,
+        description=res.description,
+        dishes_count=0)
+    redis_client.setex(f'/api/v1/menus/{str(id_menu)}/submenus/{str(id_submenu)}', 1000, response_sm.json())
     return res
 
 
@@ -63,13 +68,17 @@ async def post_submenu(
     data: CreateSubMenuRequest, id_menu: int, db: AsyncSession = Depends(get_db)
 ) -> SubMenuResponse:
     repo_sm = RepositoriesSubMenus(db)
-    res = await repo_sm.post_submenu(data, id_menu)
-    redis_client.flushall()
+    res = await repo_sm.create(data, id_menu)
+    if res:
+        redis_client.delete(f'/api/v1/menus/{id_menu}/submenus')
+        res.dishes_count = 0
+        redis_client.setex(f'/api/v1/menus/{id_menu}/submenus/{res.id}', 1000, res.json())
     return res
 
 
 @router.delete('/api/v1/menus/{id_menu}/submenus/{id_submenu}')
-async def delete_submenu(id_submenu: int, db: AsyncSession = Depends(get_db)) -> None:
+async def delete(id_menu: int, id_submenu: int, db: AsyncSession = Depends(get_db)) -> None:
     repo_sm = RepositoriesSubMenus(db)
-    redis_client.flushall()
-    await repo_sm.delete_submenu(id_submenu=id_submenu)
+    redis_client.delete(f'/api/v1/menus/{str(id_menu)}/submenus/{str(id_submenu)}')
+    redis_client.delete(f'/api/v1/menus/{str(id_menu)}')
+    await repo_sm.delete(id_submenu=id_submenu)

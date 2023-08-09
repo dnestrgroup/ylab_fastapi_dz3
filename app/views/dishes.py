@@ -16,15 +16,14 @@ router = APIRouter()
     '/api/v1/menus/{id_menu}/submenus/{id_submenu}/dishes',
     response_model=list[DishesResponse],
 )
-async def get_dishes(id_submenu: int, db: AsyncSession = Depends(get_db)) -> list[DishesResponse]:
+async def get_dishes(id_menu: int, id_submenu: int, db: AsyncSession = Depends(get_db)) -> list[DishesResponse]:
     cached_data = redis_client.get(
-        '/api/v1/menus/{id_menu}/submenus/{id_submenu}/dishes')
+        f'/api/v1/menus/{id_menu}/submenus/{id_submenu}/dishes')
     if cached_data:
         list_dishes = json.loads(cached_data)
         return [DishesResponse(**json.loads(dish)) for dish in list_dishes]
     repo_d = RepositoriesDishes(db)
-    list_dishes = await repo_d.get_list_dishes(id_submenu)
-
+    list_dishes = await repo_d.get_list(id_submenu)
     dishes_for_redis = [dish.json() for dish in list_dishes]
     redis_client.setex(
         '/api/v1/menus/{id_menu}/submenus/{id_submenu}/dishes', 1000, json.dumps(dishes_for_redis))
@@ -43,7 +42,7 @@ async def get_dishes_one(
     if cached_data:
         return DishesResponse(**json.loads(cached_data))
     repo_d = RepositoriesDishes(db)
-    res = await repo_d.get_dish_one_by_id(id_menu, id_submenu, id_dishes)
+    res = await repo_d.get(id_menu, id_submenu, id_dishes)
     if res:
         redis_client.setex(
             f'/api/v1/menus/{str(id_menu)}/submenus/{str(id_submenu)}/dishes/{ str(id_dishes)}', 1000, res.json())
@@ -53,7 +52,7 @@ async def get_dishes_one(
 
 @router.patch(
     '/api/v1/menus/{id_menu}/submenus/{id_submenu}/dishes/{id_dishes}',
-    response_model=DishesResponse,
+    response_model=DishesResponse
 )
 async def patch_dish(
     id_menu: int,
@@ -63,8 +62,16 @@ async def patch_dish(
     db: AsyncSession = Depends(get_db),
 ) -> DishesResponse:
     repo_d = RepositoriesDishes(db)
-    res = await repo_d.patch_dish(id_menu, id_submenu, id_dishes, data)
-    redis_client.flushall()
+    res = await repo_d.update(id_menu, id_submenu, id_dishes, data)
+    # redis_client.flushall()
+    response_dish = DishesResponse(
+        id=res.id,
+        title=res.title,
+        description=res.description,
+        price=res.price
+    )
+    redis_client.setex(
+        f'/api/v1/menus/{str(id_menu)}/submenus/{str(id_submenu)}/dishes/{str(id_dishes)}', 1000, response_dish.json())
     return res
 
 
@@ -77,11 +84,13 @@ async def post_dish(
     data: CreateDishesRequest,
     id_menu: int,
     id_submenu: int,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db)
 ) -> DishesResponse:
     repo_d = RepositoriesDishes(db)
-    res = await repo_d.post_dish_new(data, id_menu, id_submenu)
-    redis_client.flushall()
+    res = await repo_d.create(data, id_menu, id_submenu)
+    if res:
+        redis_client.delete(f'/api/v1/menus/{id_menu}/submenus/{id_submenu}/dishes')
+        redis_client.setex(f'/api/v1/menus/{id_menu}/submenus/{id_submenu}/dishes/{res.id}', 1000, res.json())
     return res
 
 
@@ -90,5 +99,6 @@ async def post_dish(
 )
 async def delete_dishes(id_menu: int, id_submenu: int, id_dishes: int, db: AsyncSession = Depends(get_db)) -> None:
     repo_d = RepositoriesDishes(db)
-    redis_client.flushall()
-    await repo_d.delete_dish_by_id(id_menu, id_submenu, id_dishes=id_dishes)
+    redis_client.delete(f'/api/v1/menus/{str(id_menu)}/submenus/{str(id_submenu)}/dishes/{str(id_dishes)}')
+    redis_client.delete(f'/api/v1/menus/{str(id_menu)}/submenus/{str(id_submenu)}')
+    await repo_d.delete(id_dishes=id_dishes)
