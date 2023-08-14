@@ -37,3 +37,20 @@ class DishesResponse(BaseModel):
     title: str | None
     description: str | None
     price: str
+
+
+class SubMenusResponse(BaseModel):
+    id: str
+    title: str
+    description: str
+    dishes: list[DishesResponse]
+
+
+class Restaraunt(BaseModel):
+    id: str
+    title: str
+    description: str
+    sub_menus: list[SubMenusResponse]
+
+    class Config:
+        orm_mode = True

@@ -64,3 +64,9 @@ class MenuService:
         redis_client.delete('/api/v1/menus/' + str(id))
         redis_client.delete('/api/v1/menus')
         await repo.delete(id=id)
+
+    async def get_all(self):
+        repo = RepositoriesMenus(self.db)
+        # redis_client.delete('/api/v1/menus/' + str(id))
+        # redis_client.delete('/api/v1/menus')
+        return await repo.get_all()
