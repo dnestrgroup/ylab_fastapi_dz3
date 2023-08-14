@@ -1,9 +1,10 @@
-from fastapi import Depends
+from fastapi import Depends, BackgroundTasks
 from fastapi.routing import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.base import get_db
 from app.schemas.schemas import CreateSubMenuRequest, SubMenuResponse
+from app.services.cache_invalidation import cache_invalidation
 from app.services.service_submenu import SubMenuService
 
 router = APIRouter()
@@ -29,23 +30,29 @@ async def get_submenu(
     '/api/v1/menus/{id_menu}/submenus/{id_submenu}', response_model=SubMenuResponse
 )
 async def patch_submenu(
-    id_menu: int, id_submenu: int, data: CreateSubMenuRequest, db: AsyncSession = Depends(get_db)
+    background_tasks: BackgroundTasks, id_menu: int, id_submenu: int, data: CreateSubMenuRequest, db: AsyncSession = Depends(get_db)
 ) -> SubMenuResponse:
     sbmenu_service = SubMenuService(db=db)
-    return await sbmenu_service.update_submenu(data, id_menu, id_submenu)
+    response = await sbmenu_service.update_submenu(data, id_menu, id_submenu)
+    background_tasks.add_task(cache_invalidation, '/api/v1/menus' + str(id_menu) + '/submenus' + str(id_submenu))
+    return response
 
 
 @router.post(
     '/api/v1/menus/{id_menu}/submenus', response_model=SubMenuResponse, status_code=201
 )
 async def post_submenu(
-    data: CreateSubMenuRequest, id_menu: int, db: AsyncSession = Depends(get_db)
+    background_tasks: BackgroundTasks, data: CreateSubMenuRequest, id_menu: int, db: AsyncSession = Depends(get_db)
 ) -> SubMenuResponse:
     sbmenu_service = SubMenuService(db=db)
-    return await sbmenu_service.create_submenu(data, id_menu)
+    response = await sbmenu_service.create_submenu(data, id_menu)
+    background_tasks.add_task(cache_invalidation, '/api/v1/menus' + str(id_menu) + '/submenus')
+    return response
 
 
 @router.delete('/api/v1/menus/{id_menu}/submenus/{id_submenu}')
-async def delete(id_menu: int, id_submenu: int, db: AsyncSession = Depends(get_db)) -> None:
+async def delete(background_tasks: BackgroundTasks, id_menu: int, id_submenu: int, db: AsyncSession = Depends(get_db)) -> None:
     sbmenu_service = SubMenuService(db=db)
-    await sbmenu_service.delete_submenu(id_menu, id_submenu)
+    response = await sbmenu_service.delete_submenu(id_menu, id_submenu)
+    background_tasks.add_task(cache_invalidation, '/api/v1/menus' + str(id_menu) + '/submenus' + str(id_submenu))
+    return response
