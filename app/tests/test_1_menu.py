@@ -104,3 +104,9 @@ class TestMenu(TestClientBase):
         assert response.json() == []
         response = await self.client.get(f"/menus/{pytest.id_menu}")
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_get_menus_all(self):
+        response = await self.client.get("/restaraunt")
+        assert response.status_code == 200
+        assert response.json() == []
