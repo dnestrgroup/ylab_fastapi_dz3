@@ -22,6 +22,12 @@ services:
     command: bash -c "alembic upgrade head && uvicorn --host 0.0.0.0 --port 80 --reload app.main:app"
     ports:
       - '8000:80'
+    depends_on:
+      - postgres
+      - redis
+      - celery_worker
+      - celery_beat
+      - flower
 
   pytest:
     <<: *app
@@ -43,12 +49,61 @@ services:
       - db-data:/var/lib/postgresql/data
     ports:
       - '5432:5432'
+
+  flower:
+    container_name: first_mp_flower
+    build:
+      dockerfile: ./Dockerfile
+      context: ./
+    command: celery -A app.celery.celery flower --basic_auth=${FLOWER_USER_NAME}:${FLOWER_USER_PASS} --broker=amqp://guest:guest@rabbitmq:5672/ --broker_api=http://guest:guest@rabbitmq:15672/api/
+    ports:
+      - 5556:5555
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - celery_worker
+
   redis:
     image: redis:7
     container_name: first_app_redis
     command: --port 6378
     ports:
       - '6378:6378'
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    env_file:
+      - .env
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+
+  celery_worker:
+    container_name: first_backend_celery_worker
+    build:
+      dockerfile: ./Dockerfile
+      context: ./
+    command: celery -A app.celery.celery worker --pool=prefork --concurrency=8 --loglevel=info
+    volumes:
+      - ./:/app/
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+  celery_beat:
+    container_name: first_backend_celery_beat
+    build:
+      dockerfile: ./Dockerfile
+      context: ./
+    command: celery -A app.celery.celery beat
+    volumes:
+      - ./:/app/
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
 
 volumes:
   db-data:

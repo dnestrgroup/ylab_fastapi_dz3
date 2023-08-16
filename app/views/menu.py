@@ -46,7 +46,11 @@ async def patch_menu(background_tasks: BackgroundTasks, id: int, data: CreateMen
 
 @router.post('/api/v1/menus', response_model=MenuResponse, status_code=201)
 async def post_menu(background_tasks: BackgroundTasks, data: CreateMenuRequest, db: AsyncSession = Depends(get_db)) -> MenuResponse:
+async def post_menu(background_tasks: BackgroundTasks, data: CreateMenuRequest, db: AsyncSession = Depends(get_db)) -> MenuResponse:
     menu_service = MenuService(db=db)
+    response = await menu_service.create_menu(data=data)
+    background_tasks.add_task(cache_invalidation, '/api/v1/menus')
+    return response
     response = await menu_service.create_menu(data=data)
     background_tasks.add_task(cache_invalidation, '/api/v1/menus')
     return response
@@ -54,7 +58,11 @@ async def post_menu(background_tasks: BackgroundTasks, data: CreateMenuRequest, 
 
 @router.delete('/api/v1/menus/{id}')
 async def delete_menu(background_tasks: BackgroundTasks, id: int, db: AsyncSession = Depends(get_db)) -> None:
+async def delete_menu(background_tasks: BackgroundTasks, id: int, db: AsyncSession = Depends(get_db)) -> None:
     menu_service = MenuService(db=db)
+    response = await menu_service.delete_menu(id=id)
+    background_tasks.add_task(cache_invalidation, '/api/v1/menus' + str(id))
+    return response
     response = await menu_service.delete_menu(id=id)
     background_tasks.add_task(cache_invalidation, '/api/v1/menus' + str(id))
     return response
